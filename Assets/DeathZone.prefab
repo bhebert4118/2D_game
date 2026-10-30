@@ -126,6 +126,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0c71ee93b55b56a468499c704b538082, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FallTrigger
+  deathSound: {fileID: 0}
+  deathVolume: 1
 --- !u!114 &7997913791496036855
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -138,3 +140,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0c71ee93b55b56a468499c704b538082, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FallTrigger
+  deathSound: {fileID: 8300000, guid: e010ae577a91eb44eb9626b5e7b7f34c, type: 3}
+  deathVolume: 1

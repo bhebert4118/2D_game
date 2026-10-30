@@ -24,8 +24,12 @@ public class NumberSlidingPuzzle : MonoBehaviour
     public float tileSlideSpeed = 2500f;
     public float delayBeforeClosing = 0.75f;
 
+    [Header("Sound")]
+    public AudioClip winSound;
+    public float winVolume = 1f;
+
     [Header("Solution Helper")]
-    [Tooltip("Writes the moves that solve each shuffle to PuzzleSolution.txt (3x3 only).")]
+    [Tooltip("Writes the moves that solve the puzzle to PuzzleSolution.txt. Kept up to date as you play.")]
     public bool writeSolutionFile = true;
     [Tooltip("Also opens that text file in a separate window (Notepad etc.) when the puzzle starts.")]
     public bool openSolutionFile = true;
@@ -38,6 +42,7 @@ public class NumberSlidingPuzzle : MonoBehaviour
 
     private PartReturn activePartReturn;
     private bool puzzleRunning = false;
+    private List<int> moveHistory = new List<int>();
 
     private void Awake()
     {
@@ -55,7 +60,7 @@ public class NumberSlidingPuzzle : MonoBehaviour
 
     if (writeSolutionFile)
     {
-    WriteSolution();
+    WriteSolution(openSolutionFile);
     }
     }
 
@@ -139,6 +144,8 @@ public class NumberSlidingPuzzle : MonoBehaviour
 
     blankIndex = boardValues.Length - 1;
     boardValues[blankIndex] = 0;
+
+    moveHistory.Clear();
     }
 
     // Shuffles by making random legal moves from the solved state,
@@ -209,9 +216,15 @@ public class NumberSlidingPuzzle : MonoBehaviour
 
     UpdateVisuals(false);
 
+    if (writeSolutionFile)
+    {
+    WriteSolution(false);
+    }
+
     if (IsSolved())
     {
     puzzleRunning = false;
+    Sfx.Play(winSound, winVolume);
     StartCoroutine(FinishAfterDelay());
     }
     }
@@ -231,6 +244,8 @@ public class NumberSlidingPuzzle : MonoBehaviour
     // Moves the tile at fromIndex into the blank square.
     private void MoveIntoBlank(int fromIndex)
     {
+    RecordMove(boardValues[fromIndex]);
+
     boardValues[blankIndex] = boardValues[fromIndex];
     boardValues[fromIndex] = 0;
     blankIndex = fromIndex;
@@ -304,17 +319,28 @@ public class NumberSlidingPuzzle : MonoBehaviour
 
     // ---------- Solution helper ----------
 
-    // Finds the shortest list of tile clicks that solves the current board
-    // and writes it to PuzzleSolution.txt (next to the Assets folder in the editor).
-    private void WriteSolution()
+    // The solution is just the shuffle played backwards. Every move (shuffle or player)
+    // goes on this list; moving the same tile twice in a row undoes it, so those cancel out.
+    private void RecordMove(int tileValue)
     {
-    if (gridSize != 3)
+    int last = moveHistory.Count - 1;
+
+    if (last >= 0 && moveHistory[last] == tileValue)
     {
-    Debug.Log("Puzzle solution file only works for a 3x3 puzzle.");
-    return;
+    moveHistory.RemoveAt(last);
+    }
+    else
+    {
+    moveHistory.Add(tileValue);
+    }
     }
 
-    List<int> moves = SolveBoard();
+    // Writes the tiles to click (newest move first) to PuzzleSolution.txt,
+    // which is next to the Assets folder in the editor.
+    private void WriteSolution(bool openFile)
+    {
+    List<int> moves = new List<int>(moveHistory);
+    moves.Reverse();
 
     string text = "Click these tiles in order (" + moves.Count + " moves):\n\n";
 
@@ -323,101 +349,15 @@ public class NumberSlidingPuzzle : MonoBehaviour
     text += (i + 1) + ". " + moves[i] + "\n";
     }
 
-    //string path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "PuzzleSolution.txt"));
-    //File.WriteAllText(path, text);
+    string path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "PuzzleSolution.txt"));
+    File.WriteAllText(path, text);
 
-    Debug.Log("Puzzle solution: " + string.Join(", ", moves));
-
-    if (openSolutionFile)
+    if (openFile)
     {
-    //string url = path.StartsWith("/") ? "file://" + path : "file:///" + path.Replace("\\", "/");
-    //Application.OpenURL(url);
-    }
-    }
+    Debug.Log("Puzzle solution: " + string.Join(", ", moves) + "\nSaved to " + path);
 
-    // Breadth-first search over every board layout, so the answer is always the shortest.
-    // A board is stored as a 9 digit number, e.g. 123456780 is solved (0 is the blank).
-    private List<int> SolveBoard()
-    {
-    int start = EncodeBoard(boardValues);
-    int goal = 123456780;
-
-    Dictionary<int, int> previous = new Dictionary<int, int>();
-    Dictionary<int, int> tileMoved = new Dictionary<int, int>();
-    Queue<int> queue = new Queue<int>();
-
-    previous[start] = -1;
-    queue.Enqueue(start);
-
-    int[] cells = new int[9];
-
-    while (queue.Count > 0)
-    {
-    int state = queue.Dequeue();
-
-    if (state == goal)
-    {
-    break;
-    }
-
-    DecodeBoard(state, cells);
-    int blank = System.Array.IndexOf(cells, 0);
-
-    foreach (int neighbour in GetAdjacentIndexes(blank))
-    {
-    int tile = cells[neighbour];
-
-    cells[blank] = tile;
-    cells[neighbour] = 0;
-
-    int next = EncodeBoard(cells);
-
-    if (!previous.ContainsKey(next))
-    {
-    previous[next] = state;
-    tileMoved[next] = tile;
-    queue.Enqueue(next);
-    }
-
-    cells[neighbour] = tile;
-    cells[blank] = 0;
-    }
-    }
-
-    List<int> moves = new List<int>();
-
-    if (!previous.ContainsKey(goal))
-    {
-    return moves;
-    }
-
-    for (int state = goal; state != start; state = previous[state])
-    {
-    moves.Add(tileMoved[state]);
-    }
-
-    moves.Reverse();
-    return moves;
-    }
-
-    private int EncodeBoard(int[] cells)
-    {
-    int code = 0;
-
-    for (int i = 0; i < cells.Length; i++)
-    {
-    code = code * 10 + cells[i];
-    }
-
-    return code;
-    }
-
-    private void DecodeBoard(int code, int[] cells)
-    {
-    for (int i = cells.Length - 1; i >= 0; i--)
-    {
-    cells[i] = code % 10;
-    code /= 10;
+    string url = path.StartsWith("/") ? "file://" + path : "file:///" + path.Replace("\\", "/");
+    Application.OpenURL(url);
     }
     }
 }

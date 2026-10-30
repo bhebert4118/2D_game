@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class FallTrigger : MonoBehaviour
 {
+    public AudioClip deathSound;
+    public float deathVolume = 1f;
 
     void OnTriggerEnter(Collider other)
     {
@@ -13,10 +15,12 @@ public class FallTrigger : MonoBehaviour
     Rigidbody rb = other.GetComponent<Rigidbody>();
 
 
+    Sfx.Play(deathSound, deathVolume);
+
     player.transform.position = new Vector3(0, 0, 0);
     rb.linearVelocity = Vector3.zero;
 
-    
+
     if (movement != null)
     {
     movement.LockInput(0.5f);

@@ -29,6 +29,8 @@ public class PartReturn : MonoBehaviour
     public float launchDuration = 3f;
     [Tooltip("Optional: a particle system (flame/smoke) that plays during the launch. It gets attached to the rocket.")]
     public ParticleSystem launchFlame;
+    public AudioClip launchSound;
+    public float launchVolume = 1f;
     [Tooltip("The Main Camera's CameraFollow. It switches to following the rocket during the launch.")]
     public CameraFollow cameraFollow;
 
@@ -193,6 +195,8 @@ public class PartReturn : MonoBehaviour
     {
     cameraFollow.FollowRocket(rocket);
     }
+
+    Sfx.Play(launchSound, launchVolume);
 
     if (launchFlame != null)
     {
